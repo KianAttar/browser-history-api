@@ -12,7 +12,16 @@ export function Outlet(): ReactNode {
   // `Component`/`element` are typed `unknown` in core to keep it framework-
   // agnostic; the React bindings are the one place that knows their real shape.
   const { Component, element } = match.route as { Component?: ComponentType; element?: ReactNode };
-  const rendered = Component ? createElement(Component) : (element ?? null);
+  const nextContext = { matches, index: index + 1 };
 
-  return createElement(RouteContext.Provider, { value: { matches, index: index + 1 } }, rendered);
+  // A route with no Component/element (e.g. a `path`-only grouping route used
+  // purely to nest children under a shared prefix) renders nothing of its own,
+  // so there's no JSX of its own to contain the next <Outlet/> — render it here
+  // instead of stopping, or the branch's remaining matches would never appear.
+  if (!Component && !element) {
+    return createElement(RouteContext.Provider, { value: nextContext }, createElement(Outlet));
+  }
+
+  const rendered = Component ? createElement(Component) : element;
+  return createElement(RouteContext.Provider, { value: nextContext }, rendered);
 }

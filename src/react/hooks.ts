@@ -33,9 +33,17 @@ export function useSearchParams(): [URLSearchParams, SetSearchParams] {
     (next, opts) => {
       const search = typeof next === "string" ? next : next.toString();
       const query = search ? `?${search}` : "";
-      // Replacing by default avoids piling up a history entry per keystroke
-      // on the common "filters in the query string" pattern; callers can opt out.
-      void router.navigate(`${location.pathname}${query}${location.hash}`, { replace: true, ...opts });
+      // Defaults suit the common "filter box writes to the query string" case:
+      // replace avoids a history entry per keystroke, and preventing the
+      // platform's default scroll/focus reset keeps the input focused instead
+      // of losing focus to document.body after every navigation. Callers can
+      // opt out via `opts`.
+      void router.navigate(`${location.pathname}${query}${location.hash}`, {
+        replace: true,
+        preventScrollReset: true,
+        preventFocusReset: true,
+        ...opts,
+      });
     },
     [router, location.pathname, location.hash]
   );

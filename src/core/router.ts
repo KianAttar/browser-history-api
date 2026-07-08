@@ -16,6 +16,16 @@ export interface NavigateOptions {
   state?: unknown;
   info?: unknown;
   replace?: boolean;
+  /** Skip the platform's default scroll-to-top/fragment restoration for this navigation. */
+  preventScrollReset?: boolean;
+  /** Skip the platform's default focus-reset-to-body for this navigation (see 05-scroll-focus-error-handling.md) — needed for e.g. a search box that navigates on every keystroke. */
+  preventFocusReset?: boolean;
+}
+
+interface NavigateInfoEnvelope {
+  userInfo: unknown;
+  preventScrollReset?: boolean;
+  preventFocusReset?: boolean;
 }
 
 export interface Router {
@@ -74,7 +84,13 @@ export function createRouter(routes: RouteObject[]): Router {
     // cepted) navigation rather than committing to a blank/unknown state.
     if (!matches) return;
 
+    // Only `router.navigate()` wraps `info` in this envelope (see below); any
+    // other navigation source (link click, back/forward) leaves it as-is.
+    const envelope = event.info as NavigateInfoEnvelope | undefined;
+
     event.intercept({
+      scroll: envelope?.preventScrollReset ? "manual" : "after-transition",
+      focusReset: envelope?.preventFocusReset ? "manual" : "after-transition",
       handler() {
         setState({ location, matches });
         return Promise.resolve();
@@ -93,9 +109,14 @@ export function createRouter(routes: RouteObject[]): Router {
       return () => listeners.delete(listener);
     },
     navigate(to, opts = {}) {
+      const envelope: NavigateInfoEnvelope = {
+        userInfo: opts.info,
+        preventScrollReset: opts.preventScrollReset,
+        preventFocusReset: opts.preventFocusReset,
+      };
       return nav.navigate(to, {
         state: opts.state,
-        info: opts.info,
+        info: envelope,
         history: opts.replace ? "replace" : "auto",
       });
     },
